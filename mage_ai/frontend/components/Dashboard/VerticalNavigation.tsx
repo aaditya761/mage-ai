@@ -21,7 +21,7 @@ import {
   Settings,
   HexagonAll,
   TemplateShapes,
-  Terminal,
+  Terminal, Chart1,
 } from '@oracle/icons';
 import {
   NavigationItemStyle,
@@ -118,6 +118,14 @@ const DEFAULT_NAV_ITEMS = [
         label: () => 'Settings',
         linkProps: {
           href: '/settings',
+        },
+      },
+        {
+        Icon: Chart1,
+        id: 'chart',
+        label: () => 'Graph View',
+        linkProps: {
+          href: '/graph-view',
         },
       },
     ],

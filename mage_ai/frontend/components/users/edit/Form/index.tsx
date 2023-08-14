@@ -151,7 +151,6 @@ function UserEditForm({
             },
           }) => {
             alert(message);
-            console.log(errors);
           },
         },
       ),

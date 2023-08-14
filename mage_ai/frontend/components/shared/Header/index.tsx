@@ -191,7 +191,8 @@ function Header({
           </Flex>
 
           <Flex alignItems="center">
-            {latesetVersion && version && latesetVersion !== version && (
+            <div style={{ display: 'none' }}>
+              {latesetVersion && version && latesetVersion !== version && (
               <Spacing ml={2}>
                 <Button
                   borderLess
@@ -214,6 +215,7 @@ function Header({
                 </Button>
               </Spacing>
             )}
+            </div>
 
             {branch && (
               <Spacing ml={2}>

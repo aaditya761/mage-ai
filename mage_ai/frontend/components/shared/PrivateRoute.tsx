@@ -30,7 +30,6 @@ export default function PrivateRoute(WrappedComponent: any) {
       };
 
       if (REQUIRE_USER_AUTHENTICATION(ctx) && auth.isExpired) {
-        console.log('OAuth token has expired.');
         const query = {
           ...ctx.query,
           redirect_url: ctx.asPath,
