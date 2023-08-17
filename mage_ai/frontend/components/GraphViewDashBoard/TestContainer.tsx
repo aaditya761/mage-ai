@@ -6,44 +6,41 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
-import Paper from '@mui/material/Paper';
+import { DataGrid, GridRowsProp, GridColDef } from '@mui/x-data-grid';
+
 
 
 const TestContainer = ({ testData, setTestId }) => {
-    
-    const handleChange = (e) => {
-        setTestId(e.target.value);
+
+    const handleChange = (test_id) => {
+        setTestId(test_id);
     };
+
+    const rows: GridRowsProp = testData.map((item)=>({
+            id: item.test_id,
+            start_date: item.start_date,
+            end_date: item.end_date,
+            name: item.test_name,
+        }));
+
+    const columns: GridColDef[] = [
+        { field: 'id', headerName: 'ID', width: 150 },
+        { field: 'start_date', headerName: 'Start Date', width: 150 },
+        { field: 'end_date', headerName: 'End Date', width: 150 },
+        { field: 'name', headerName: 'Name', width: 600 },
+    ];
 
     return (
       <>
-        {testData.length > 0 && (<div>
-          <TableContainer component={Paper}>
-            <Table aria-label="simple table" sx={{ minWidth: 650 }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell align="right">Start Date</TableCell>
-                  <TableCell align="right">End Date</TableCell>
-                  <TableCell align="right">Name </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {testData.map((row) => (
-                  <TableRow
-                                key={row.test_id}
-                                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
-                            >
-                    <TableCell align="right">{row.test_id}</TableCell>
-                    <TableCell align="right">{row.start_date}</TableCell>
-                    <TableCell align="right">{row.end_date}</TableCell>
-                    <TableCell align="right">{row.test_name}</TableCell>
-                  </TableRow>
-                        ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </div>)}
+        <div style={{ height: 400, width: '100%' }}>
+          {testData.length > 0 ? <DataGrid
+              columns={columns}
+              rows={rows}
+              onRowSelectionModelChange={(item) => {
+                  handleChange(item);
+              }}
+          /> : null}
+        </div>
       </>
     );
 };

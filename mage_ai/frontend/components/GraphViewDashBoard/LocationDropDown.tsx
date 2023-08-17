@@ -12,21 +12,21 @@ import {
 } from './styles';
 
 const LocationDropdown = ({ batteryId, setBatteryId }) => {
-  const [locationsList, setLocationsList] = useState([]);
+  const [batteryData, setBatteryData] = useState([]);
   const handleChange = (e) => {
     setBatteryId(e.target.value);
   };
 
   useEffect(() => {
-    getLocations();
+    getBatteryData();
   }, []);
-  const getLocations = async () => {
+  const getBatteryData = async () => {
     const data = await http.get(API_CONSTANTS.GET_LOCATIONS);
-    setLocationsList(data.data);
+    setBatteryData(data.data);
   };
   const renderLocationData = () => {
-    if (locationsList)
-      return locationsList.map((item) => (
+    if (batteryData)
+      return batteryData.map((item) => (
         <StyledMenuItem key={item.cell_type_id} value={item.cell_type_id}>
           {item.chemistry + ' - ' + item.manufacturer}
         </StyledMenuItem>
@@ -36,7 +36,7 @@ const LocationDropdown = ({ batteryId, setBatteryId }) => {
   return (
     <>
       <FormControl size={'small'} sx={{ m: 1, width: 300 }}>
-        <StyledInputLabel id="demo-simple-select-label">{' Location '}</StyledInputLabel>
+        <StyledInputLabel id="demo-simple-select-label">{' Battery '}</StyledInputLabel>
         <StyledSelect
           id="demo-simple-select"
           input={<StyledOutlinedInput label=" Battery " />}

@@ -42,13 +42,14 @@ export const DashboardContainer = styled.div`
   flex-direction: column;
   max-width: 100vw;
   padding-left: 1rem;
+  padding-right: 1rem;
   gap: 12px;
   min-height: 100vh;
 `;
 
 export const ChartContainer = styled(Paper)`
-  padding-right: 2rem;
   height: 100%;
+  margin-bottom: 4rem;
 `;
 
 export const Row = styled.div`
@@ -59,7 +60,7 @@ export const Row = styled.div`
 
 export const FormGroupRow = styled(FormGroup)`
   display: flex;
-  flex-direction: row;
+  flex-direction: row !important;
   padding: 2rem 0 0 2rem;
 `;
 
