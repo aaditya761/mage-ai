@@ -1,13 +1,10 @@
-import dynamic from 'next/dynamic';
-import React, { useEffect, useState, PureComponent } from 'react';
-
-const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false });
+import React, { useEffect, useState } from 'react';
 import Highcharts from 'highcharts/highstock';
 import HighchartsReact from 'highcharts-react-official';
-import http from './http';
+import { http }  from './http';
 import API_CONSTANTS from './apiConstants';
 import PropTypes from 'prop-types';
-import { CenterAlign, FormGroupRow, SCLineContainer } from './styles';
+import { SCLineContainer } from './styles';
 
 const SCLineChart = ({ testID, dateRange, setDateRange, toggleChartView }) => {
     const [currentData, setCurrentData] = useState([]);
@@ -17,8 +14,6 @@ const SCLineChart = ({ testID, dateRange, setDateRange, toggleChartView }) => {
     const [cycles, setCycles] = useState([]);
 
     const getSensorData = async ({ from, to }) => {
-        console.log("oooooooooooooooooooooooooooooooooooooooooooooooooo")
-        console.log(testID)
         const response = await http.get(
             `${API_CONSTANTS.SENSOR_DATA}?test_id=${selectedTestId}`,
         );
@@ -136,9 +131,9 @@ const SCLineChart = ({ testID, dateRange, setDateRange, toggleChartView }) => {
 
 
     return (
-       <SCLineContainer>
-           {getHighChart()}
-       </SCLineContainer>
+      <SCLineContainer>
+        {getHighChart()}
+      </SCLineContainer>
     );
 };
 

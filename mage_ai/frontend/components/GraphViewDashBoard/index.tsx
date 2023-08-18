@@ -9,24 +9,8 @@ const GraphViewDashBoard = () => {
     const [selectedSensors, setSelectedSensors] = useState([]);
     const [testData, setTestData] = useState([]);
     const [selectedTestID, setSelectedTestID] = useState(null);
-    const [timestamp, setTimestamp] = useState([
-        {
-            startDate: null,
-            endDate: null,
-            key: 'selection',
-        },
-    ]);
     const [showAltChartView, setShowAltChartView] = useState(false);
 
-    const updateDates = (from, to) => {
-        setTimestamp([
-            {
-                startDate: new Date(from),
-                endDate: new Date(to),
-                key: 'selection',
-            },
-        ]);
-    };
 
     const selectTest = (test_id) => {
         setSelectedTestID(test_id);
@@ -45,8 +29,6 @@ const GraphViewDashBoard = () => {
                     setSelectedSensors={setSelectedSensors}
                     setShowAltChartView={setShowAltChartView}
                     setTestData={changeTest}
-                    setTimestamp={setTimestamp}
-                    showAltChartView={showAltChartView}
                 />
         </Stack>
         {(testData.length > 0) &&
@@ -56,11 +38,6 @@ const GraphViewDashBoard = () => {
             }
         <ChartContainer>
           {selectedTestID ? <SCLineChart
-                    dateRange={{
-                        from: new Date(timestamp[0].startDate).getTime(),
-                        to: new Date(timestamp[0].endDate).getTime(),
-                    }}
-                    setDateRange={updateDates}
                     testID={selectedTestID}
                     toggleChartView={showAltChartView}
                 /> : null}

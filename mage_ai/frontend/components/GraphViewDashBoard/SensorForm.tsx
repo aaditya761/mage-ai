@@ -1,20 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import LocationDropdown from './LocationDropDown';
-import SensorList from './SensorList';
-import TimestampSlider from './TimeStampSlider';
 import PropTypes from 'prop-types';
-import { Grid, Switch } from '@mui/material';
-import { StyledToggle, StyledCTA } from './styles';
-import http from './http';
+import { Grid } from '@mui/material';
+import { http } from './http';
 import API_CONSTANTS from './apiConstants';
+import ModelNameDropDown from '@components/GraphViewDashBoard/ModelNameDropDown';
+import ModelTagDropDown from '@components/GraphViewDashBoard/ModelTagsDropDown';
 
 export const SensorForm = ({
-                               showAltChartView,
                                setShowAltChartView,
                                selectedSensors,
                                setSelectedSensors,
                                setTestData,
-                               setTimestamp,
                            }) => {
     const [batteryId, setBatteryId] = useState(null);
 
@@ -32,16 +29,6 @@ export const SensorForm = ({
         setTestData(res.data);
     };
 
-    const setChartView = (e) => {
-        console.log(e.target.checked, 'ec');
-        setShowAltChartView(e.target.checked);
-    };
-
-    const onReset = () => {
-        setShowAltChartView(false);
-        setBatteryId(null);
-        setSelectedSensors([]);
-    };
 
     // @ts-ignore
     return (
@@ -49,28 +36,13 @@ export const SensorForm = ({
         <Grid item xs={3}>
           <LocationDropdown batteryId={batteryId} setBatteryId={setBatteryId}/>
         </Grid>
-        {/*<Grid item xs={3}>*/}
-        {/*  <SensorList*/}
-        {/*    sensorList={testData}*/}
-        {/*    selectedSensors={selectedSensors}*/}
-        {/*    onSensorSelected={setSelectedSensors}*/}
-        {/*    disabled={!batteryId}*/}
-        {/*  />*/}
-        {/*  <StyledCTA*/}
-        {/*    color={disableReset ? 'rgba(0, 0, 0, 0.38)' : '#1976d2'}*/}
-        {/*    underline={disableReset ? 'none' : 'hover'}*/}
-        {/*    onClick={onReset}*/}
-        {/*  >*/}
-        {/*    Reset*/}
-        {/*  </StyledCTA>*/}
-        {/*</Grid>*/}
-        {/*<Grid item xs={3}>*/}
-        {/*  <TimestampSlider*/}
-        {/*    timestamp={timestamp}*/}
-        {/*    setTimestamp={setTimestamp}*/}
-        {/*    disabled={!(batteryId && selectedSensors?.length > 0)}*/}
-        {/*  />*/}
-        {/*</Grid>*/}
+        <Grid item xs={3}>
+          <ModelNameDropDown/>
+        </Grid>
+          <Grid item xs={3}>
+              <ModelTagDropDown/>
+          </Grid>
+
       </Grid>
     );
 };
@@ -78,9 +50,7 @@ export const SensorForm = ({
 SensorForm.propTypes = {
     selectedSensors: PropTypes.array.isRequired,
     setShowAltChartView: PropTypes.func.isRequired,
-    showAltChartView: PropTypes.bool.isRequired,
     setSelectedSensors: PropTypes.func.isRequired,
-    setTimestamp: PropTypes.func.isRequired,
     setTestData: PropTypes.func.isRequired,
 };
 

@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const baseUrl = 'http://localhost:3005';
 
-const http = axios.create({
+export const http = axios.create({
     baseURL: baseUrl,
     headers: {
         'Content-Type': 'application/json',
@@ -14,7 +14,7 @@ const http = axios.create({
 const requestHandler = (request) => {
     request.headers = {
         ...request.headers,
-        Authorization: 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiJjNWE1NjdjMy00MjRhLTRjNTctOGMzZC03ZjUxOTQ2NGM1ZjgiLCJpYXQiOjE2OTE2ODA0ODksImV4cCI6MTY5MTc2Njg4OX0.5cikddaL9c2mu3G7yLU2Jf1C3ipaJnFMNQmCFgpZw-4',
+        Authorization: '',
     };
     return request;
 };
@@ -36,5 +36,13 @@ http.interceptors.response.use(
     (response) => responseHandler(response),
     (error) => errorHandler(error),
 );
+//
+// export const mlFLowHttp = axios.create({
+//     baseURL: 'https://mcin9yp3zn.us-west-2.awsapprunner.com/api/2.0',
+//     headers: {
+//         'origin': 'http://localhost:3001',
+//         'Authorization': 'Basic bWxmbG93Ok9XTXh1UXozQDRtNFhWTSU=',
+//         'Content-Type': 'application/json',
+//     },
+// });
 
-export default http;

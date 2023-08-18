@@ -1,7 +1,7 @@
 import { FormControl } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
-import http from './http';
+import { http } from './http';
 import API_CONSTANTS from './apiConstants';
 
 import {
