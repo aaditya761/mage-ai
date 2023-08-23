@@ -1,6 +1,6 @@
 import NextLink from 'next/link';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MutateFunction, useMutation } from 'react-query';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/router';
 
 import BrowseTemplates from '@components/CustomTemplates/BrowseTemplates';
@@ -25,7 +25,7 @@ import PrivateRoute from '@components/shared/PrivateRoute';
 import ProjectType from '@interfaces/ProjectType';
 import Spacing from '@oracle/elements/Spacing';
 import Spinner from '@oracle/components/Spinner';
-import Table from '@components/shared/Table';
+import Table, { SortedColumnType } from '@components/shared/Table';
 import TagType from '@interfaces/TagType';
 import TagsContainer from '@components/Tags/TagsContainer';
 import Text from '@oracle/elements/Text';
@@ -33,30 +33,37 @@ import ToggleSwitch from '@oracle/elements/Inputs/ToggleSwitch';
 import Toolbar from '@components/shared/Table/Toolbar';
 import api from '@api';
 import dark from '@oracle/styles/themes/dark';
+
 import { BORDER_RADIUS_SMALL } from '@oracle/styles/units/borders';
 import { BlockTypeEnum } from '@interfaces/BlockType';
 import { Check, Circle, Clone, File, Open, Pause, PlayButtonFilled, Secrets } from '@oracle/icons';
 import { ErrorProvider } from '@context/Error';
+import { GlobalDataProductObjectTypeEnum } from '@interfaces/GlobalDataProductType';
 import { HEADER_HEIGHT } from '@components/shared/Header/index.style';
-import { NAV_TAB_PIPELINES } from '@components/CustomTemplates/BrowseTemplates/constants';
-import { OBJECT_TYPE_PIPELINES } from '@interfaces/CustomTemplateType';
-import { PADDING_UNITS, UNIT } from '@oracle/styles/units/spacing';
-import { ScheduleStatusEnum } from '@interfaces/PipelineScheduleType';
-import { TableContainerStyle } from '@components/shared/Table/index.style';
-import { capitalize, capitalizeRemoveUnderscoreLower, randomNameGenerator } from '@utils/string';
-import { displayErrorFromReadResponse, onSuccess } from '@api/utils/response';
-import { filterQuery, queryFromUrl } from '@utils/url';
 import {
+  LOCAL_STORAGE_KEY_PIPELINE_LIST_SORT_COL_IDX,
+  LOCAL_STORAGE_KEY_PIPELINE_LIST_SORT_DIRECTION,
   getFilters,
   getGroupBys,
   setFilters,
   setGroupBys,
 } from '@storage/pipelines';
+import { NAV_TAB_PIPELINES } from '@components/CustomTemplates/BrowseTemplates/constants';
+import { OBJECT_TYPE_PIPELINES } from '@interfaces/CustomTemplateType';
+import { PADDING_UNITS, UNIT } from '@oracle/styles/units/spacing';
+import { ScheduleStatusEnum } from '@interfaces/PipelineScheduleType';
+import { SortDirectionEnum } from '@components/shared/Table/constants';
+import { SortQueryEnum } from '@components/shared/Table/constants';
+import { TableContainerStyle } from '@components/shared/Table/index.style';
+import { capitalize, capitalizeRemoveUnderscoreLower, randomNameGenerator } from '@utils/string';
+import { displayErrorFromReadResponse, onSuccess } from '@api/utils/response';
+import { filterQuery, queryFromUrl } from '@utils/url';
+import { get, set } from '@storage/localStorage';
 import { getNewPipelineButtonMenuItems } from '@components/Dashboard/utils';
 import { goToWithQuery } from '@utils/routing';
+import { indexBy, sortByKey } from '@utils/array';
 import { isEmptyObject } from '@utils/hash';
 import { pauseEvent } from '@utils/events';
-import { sortByKey } from '@utils/array';
 import { useError } from '@context/Error';
 import { useModal } from '@context/Modal';
 
@@ -74,6 +81,7 @@ function PipelineListPage() {
   const refTable = useRef(null);
 
   const [selectedPipeline, setSelectedPipeline] = useState<PipelineType>(null);
+  const [pipelineRowsSorted, setPipelineRowsSorted] = useState<React.ReactElement[][]>(null);
   const [searchText, setSearchText] = useState<string>(null);
   const [pipelinesEditing, setPipelinesEditing] = useState<{
     [uuid: string]: boolean;
@@ -103,14 +111,56 @@ function PipelineListPage() {
 
     return pipelinesFinal;
   }, [data?.pipelines, searchText]);
+  const uuidToPipelineMapping = useMemo(() => indexBy(
+    pipelines,
+    ({ uuid }) => uuid,
+  ), [pipelines]);
+  const getUniqueRowIdentifier = useCallback(
+    row => row?.[2]?.props?.children?.props?.children,
+    [],
+  );
+  const pipelinesSorted = useMemo(() => (pipelineRowsSorted?.length > 0
+    ? (
+      pipelineRowsSorted?.map(row => {
+        // Get pipeline UUID from the third column of the table.
+        const pipelineUUIDFromRow = getUniqueRowIdentifier(row);
+        return uuidToPipelineMapping?.[pipelineUUIDFromRow];
+      })
+    ) : pipelines
+  ), [getUniqueRowIdentifier, pipelineRowsSorted, pipelines, uuidToPipelineMapping]);
+  const sortableColumnIndexes = useMemo(() => [1, 2, 3, 4, 5, 6, 8, 9], []);
 
   const { data: dataProjects, mutate: fetchProjects } = api.projects.list();
   const project: ProjectType = useMemo(() => dataProjects?.projects?.[0], [dataProjects]);
 
+  const sortColumnIndexQuery = q?.[SortQueryEnum.SORT_COL_IDX];
+  const sortDirectionQuery = q?.[SortQueryEnum.SORT_DIRECTION];
+  const sortedColumnInit: SortedColumnType = useMemo(() => (sortColumnIndexQuery
+      ?
+        {
+          columnIndex: +sortColumnIndexQuery,
+          sortDirection: sortDirectionQuery || SortDirectionEnum.ASC,
+        }
+      : null
+  ), [sortColumnIndexQuery, sortDirectionQuery]);
   const groupByQuery = q?.[PipelineQueryEnum.GROUP];
 
   useEffect(() => {
     let queryFinal = {};
+
+    if (sortColumnIndexQuery && sortableColumnIndexes.includes(+sortColumnIndexQuery)) {
+      set(LOCAL_STORAGE_KEY_PIPELINE_LIST_SORT_COL_IDX, sortColumnIndexQuery);
+      if (sortDirectionQuery) {
+        set(LOCAL_STORAGE_KEY_PIPELINE_LIST_SORT_DIRECTION, sortDirectionQuery);
+      }
+    } else {
+      const sortColumnIndexFromStorage = get(LOCAL_STORAGE_KEY_PIPELINE_LIST_SORT_COL_IDX, null);
+      const sortDirectionFromStorage = get(LOCAL_STORAGE_KEY_PIPELINE_LIST_SORT_DIRECTION, SortDirectionEnum.ASC);
+      if (sortColumnIndexFromStorage !== null) {
+        queryFinal[SortQueryEnum.SORT_COL_IDX] = sortColumnIndexFromStorage;
+        queryFinal[SortQueryEnum.SORT_DIRECTION] = sortDirectionFromStorage;
+      }
+    }
 
     if (groupByQuery) {
       setGroupBys({
@@ -182,6 +232,9 @@ function PipelineListPage() {
   }, [
     groupByQuery,
     query,
+    sortableColumnIndexes,
+    sortColumnIndexQuery,
+    sortDirectionQuery,
   ]);
 
   useEffect(() => {
@@ -700,8 +753,8 @@ function PipelineListPage() {
   } = useMemo(() => {
     const mapping = {};
 
-    pipelines?.forEach((pipeline, idx: number) => {
-      let value = pipeline[groupByQuery];
+    pipelinesSorted?.forEach((pipeline, idx: number) => {
+      let value = pipeline?.[groupByQuery];
 
       if (PipelineGroupingEnum.STATUS === groupByQuery) {
         const { schedules = [] } = pipeline;
@@ -772,7 +825,7 @@ function PipelineListPage() {
     };
   }, [
     groupByQuery,
-    pipelines,
+    pipelinesSorted,
   ]);
 
   return (
@@ -802,7 +855,7 @@ function PipelineListPage() {
             maxHeight={`calc(100vh - ${HEADER_HEIGHT + 74}px)`}
           >
             <Table
-              columnFlex={[null, null, null, 2, null, null, 1, null, null, null]}
+              columnFlex={[null, null, null, 2, null, null, null, 1, null, null, null]}
               columns={[
                 {
                   label: () => '',
@@ -824,6 +877,9 @@ function PipelineListPage() {
                   uuid: 'Updated at',
                 },
                 {
+                  uuid: 'Created at',
+                },
+                {
                   uuid: 'Tags',
                 },
                 {
@@ -838,21 +894,23 @@ function PipelineListPage() {
                   uuid: 'Actions',
                 },
               ]}
-              isSelectedRow={(rowIndex: number) => pipelines[rowIndex]?.uuid === selectedPipeline?.uuid}
+              defaultSortColumnIndex={2}
+              getUniqueRowIdentifier={getUniqueRowIdentifier}
+              isSelectedRow={(rowIndex: number) => pipelinesSorted[rowIndex]?.uuid === selectedPipeline?.uuid}
               onClickRow={(rowIndex: number) => setSelectedPipeline(prev => {
-                const pipeline = pipelines[rowIndex];
+                const pipeline = pipelinesSorted[rowIndex];
 
                 return (prev?.uuid !== pipeline?.uuid) ? pipeline : null;
               })}
               onDoubleClickRow={(rowIndex: number) => {
                 router.push(
                     '/pipelines/[pipeline]/edit',
-                    `/pipelines/${pipelines[rowIndex].uuid}/edit`,
+                    `/pipelines/${pipelinesSorted[rowIndex].uuid}/edit`,
                 );
               }}
               ref={refTable}
               renderRightClickMenuItems={(rowIndex: number) => {
-                const selectedPipeline = pipelines[rowIndex];
+                const selectedPipeline = pipelinesSorted[rowIndex];
 
                 return [
                   {
@@ -900,6 +958,15 @@ function PipelineListPage() {
                     uuid: 'create_custom_template',
                   },
                   {
+                    label: () => 'Create global data product',
+                    onClick: () => {
+                      router.push(
+                        `/global-data-products?object_type=${GlobalDataProductObjectTypeEnum.PIPELINE}&new=1&object_uuid=${selectedPipeline?.uuid}`,
+                      );
+                    },
+                    uuid: 'create_global_data_product',
+                  },
+                  {
                     label: () => 'Delete',
                     onClick: () => {
                       if (typeof window !== 'undefined'
@@ -914,10 +981,12 @@ function PipelineListPage() {
                   },
                 ];
               }}
+              rightClickMenuWidth={UNIT * 25}
               rowGroupHeaders={rowGroupHeaders}
               rows={pipelines.map((pipeline, idx) => {
                 const {
                   blocks,
+                  created_at: createdAt,
                   description,
                   schedules,
                   tags,
@@ -1010,6 +1079,14 @@ function PipelineListPage() {
                   >
                     {updatedAt ? updatedAt.slice(0, -3) : <>&#8212;</>}
                   </Text>,
+                  <Text
+                    key={`pipeline_created_at_${idx}`}
+                    monospace
+                    small
+                    title={createdAt}
+                  >
+                    {createdAt ? createdAt.slice(0, 16) : <>&#8212;</>}
+                  </Text>,
                   tagsEl,
                   <Text
                     default={blocksCount === 0}
@@ -1058,6 +1135,9 @@ function PipelineListPage() {
                 ];
               })}
               rowsGroupedByIndex={rowsGroupedByIndex}
+              setRowsSorted={setPipelineRowsSorted}
+              sortableColumnIndexes={sortableColumnIndexes}
+              sortedColumn={sortedColumnInit}
               stickyHeader
             />
           </TableContainerStyle>

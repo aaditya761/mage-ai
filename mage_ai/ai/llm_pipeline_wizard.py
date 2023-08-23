@@ -1,6 +1,9 @@
+import ast
 import asyncio
 import json
 import os
+import re
+from typing import Dict, List
 
 import openai
 from langchain.chains import LLMChain
@@ -51,25 +54,36 @@ PROMPT_TO_SPLIT_BLOCKS = """
 A BLOCK does one action either reading data from one data source, transforming the data from
 one format to another or exporting data into a data source.
 Based on the code description delimited by triple backticks, your task is to identify
-how many BLOCKS required and function for each BLOCK.
+how many BLOCKS required, function for each BLOCK and upstream blocks between BLOCKs.
 
 Use the following format:
-BLOCK 1: <block function>
-BLOCK 2: <block function>
-BLOCK 3: <block function>
+BLOCK 1: function: <block function>. upstream: <upstream blocks>
+BLOCK 2: function: <block function>. upstream: <upstream blocks>
+BLOCK 3: function: <block function>. upstream: <upstream blocks>
 ...
 
 Example:
 <code description>: ```
-Read data from MySQL, filter out rows with book_price > 100, and save data to BigQuery.
+Read data from MySQL and Postgres, filter out rows with book_price > 100, and save data to BigQuery.
 ```
 
 Answer:
-BLOCK 1: load data from MySQL
-BLOCK 2: filter out rows with book_price > 100
-BLOCK 3: export data to BigQuery
+BLOCK 1: function: load data from MySQL. upstream:
+BLOCK 2: function: load data from Postgres. upstream:
+BLOCK 3: function: filter out rows with book_price > 100. upstream: 1, 2
+BLOCK 4: function: export data to BigQuery. upstream: 3
 
 <code description>: ```{code_description}```"""
+PROMPT_FOR_FUNCTION_COMMENT = """
+The content within the triple backticks is a code block.
+Your task is to write comments for each function inside.
+
+```{block_content}```
+
+The comment should follow Google Docstring format.
+Return your response in JSON format with function name as key and the comment as value.
+"""
+BLOCK_SPLIT_PATTERN = r"BLOCK\s+(\w+):\s+function:\s+(.*?)\.\s+upstream:\s*(.*?)$"
 TRANSFORMERS_FOLDER = 'transformers'
 CLASSIFICATION_FUNCTION_NAME = "classify_description"
 TEMPLATE_CLASSIFICATION_FUNCTION = [
@@ -186,7 +200,10 @@ class LLMPipelineWizard:
                                     function_args.get(DataSource.__name__))
         return block_type, block_language, pipeline_type, config
 
-    async def async_generate_block_with_description(self, block_description: str) -> dict:
+    async def async_generate_block_with_description(
+            self,
+            block_description: str,
+            upstream_blocks: List[str] = None) -> dict:
         messages = [{"role": "user", "content": block_description}]
         response = await openai.ChatCompletion.acreate(
             model="gpt-3.5-turbo-0613",
@@ -209,6 +226,7 @@ class LLMPipelineWizard:
                     pipeline_type=pipeline_type,
                 ),
                 language=block_language,
+                upstream_blocks=upstream_blocks,
             )
         else:
             logger.error("Failed to interpret the description as a block template.")
@@ -227,11 +245,12 @@ class LLMPipelineWizard:
     async def __async_generate_blocks(self,
                                       block_dict: dict,
                                       block_id: int,
-                                      block_description: str) -> dict:
-        block = await self.async_generate_block_with_description(block_description)
+                                      block_description: str,
+                                      upstream_blocks: [str]) -> dict:
+        block = await self.async_generate_block_with_description(block_description, upstream_blocks)
         block_dict[block_id] = block
 
-    async def async_generate_pipeline_with_description(self, pipeline_description: str) -> dict:
+    async def async_generate_pipeline_from_description(self, pipeline_description: str) -> dict:
         splited_block_descriptions = await self.__async_split_description_by_blocks(
             pipeline_description)
         blocks = {}
@@ -239,13 +258,55 @@ class LLMPipelineWizard:
         for line in splited_block_descriptions.strip().split('\n'):
             if line.startswith("BLOCK") and ":" in line:
                 # Extract the block_id and block_description from the line
-                raw_block_id, block_description = line.split(":", 1)
-                block_id = raw_block_id.strip().split(" ")[-1]
-                block_description = block_description.strip()
-                block_tasks.append(
-                    self.__async_generate_blocks(blocks, block_id, block_description))
+                match = re.search(BLOCK_SPLIT_PATTERN, line)
+                if match:
+                    block_id = match.group(1)
+                    block_description = match.group(2).strip()
+                    upstream_blocks = match.group(3).split(", ")
+                    block_tasks.append(
+                        self.__async_generate_blocks(
+                            blocks,
+                            block_id,
+                            block_description,
+                            upstream_blocks))
         await asyncio.gather(*block_tasks)
         return blocks
+
+    def __insert_comments_in_functions(self, code: str, function_comments: Dict):
+        # Parse the input code into an abstract syntax tree (AST).
+        tree = ast.parse(code)
+        # Traverse the AST and find function definitions.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                function_name = node.name
+                if function_comments.get(function_name):
+                    comment_text = function_comments[function_name]
+                    # Insert a comment node below a given node.
+                    if isinstance(node.body[0], ast.Expr) and \
+                       isinstance(node.body[0].value, ast.Constant):
+                        # If there is existing doc string, combine the new comment with it.
+                        existing_comment_node = node.body[0]
+                        existing_comment_text = node.body[0].value.value
+                        new_comment = ast.Expr(
+                            value=ast.Str(s=f"{comment_text}\n{existing_comment_text}"))
+                        node.body.remove(existing_comment_node)
+                    else:
+                        # Add newly generated doc string.
+                        new_comment = ast.Expr(value=ast.Str(s=comment_text))
+                    node.body.insert(0, new_comment)
+        return ast.unparse(tree)
+
+    async def async_generate_comment_for_block(self, block_content: str) -> str:
+        prompt_template = PromptTemplate(
+            input_variables=[
+                'block_content',
+            ],
+            template=PROMPT_FOR_FUNCTION_COMMENT,
+        )
+        chain = LLMChain(llm=self.llm, prompt=prompt_template)
+        function_comments_json = await chain.arun(block_content=block_content)
+        function_comments = json.loads(function_comments_json)
+        return self.__insert_comments_in_functions(block_content, function_comments)
 
     async def async_generate_pipeline_documentation(
         self,

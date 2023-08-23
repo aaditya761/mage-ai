@@ -6,6 +6,7 @@ import shutil
 from typing import Callable, Dict, List
 
 import aiofiles
+import pytz
 import yaml
 from jinja2 import Template
 
@@ -55,6 +56,7 @@ class Pipeline:
         self.block_configs = []
         self.blocks_by_uuid = {}
         self.concurrency_config = dict()
+        self.created_at = None
         self.data_integration = None
         self.description = None
         self.executor_config = dict()
@@ -64,10 +66,11 @@ class Pipeline:
         self.notification_config = dict()
         self.repo_path = repo_path or get_repo_path()
         self.retry_config = {}
+        self.run_pipeline_in_one_process = False
         self.schedules = []
         self.tags = []
         self.type = PipelineType.PYTHON
-        self.updated_at = datetime.datetime.now()
+        self.updated_at = datetime.datetime.now(tz=pytz.UTC)
         self.uuid = uuid
         self.widget_configs = []
         self._executor_count = 1  # Used by streaming pipeline to launch multiple executors
@@ -138,6 +141,13 @@ class Pipeline:
     def version_name(self):
         return f'v{self.version}'
 
+    @property
+    def all_block_configs(self) -> List[Dict]:
+        return self.block_configs + \
+            self.conditional_configs + \
+            self.callback_configs + \
+            self.widget_configs
+
     @classmethod
     def create(self, name, pipeline_type=PipelineType.PYTHON, repo_path=None):
         """
@@ -154,6 +164,7 @@ class Pipeline:
         # Update metadata.yaml with pipeline config
         with open(os.path.join(pipeline_path, PIPELINE_CONFIG_FILE), 'w') as fp:
             yaml.dump(dict(
+                created_at=str(datetime.datetime.now(tz=pytz.UTC)),
                 name=name,
                 uuid=uuid,
                 type=format_enum(pipeline_type or PipelineType.PYTHON),
@@ -466,6 +477,7 @@ class Pipeline:
             self._executor_count = int(config.get('executor_count'))
         except Exception:
             pass
+        self.created_at = config.get('created_at')
         self.updated_at = config.get('updated_at')
         self.type = config.get('type') or self.type
 
@@ -477,6 +489,7 @@ class Pipeline:
         self.executor_type = config.get('executor_type')
         self.notification_config = config.get('notification_config') or {}
         self.retry_config = config.get('retry_config') or {}
+        self.run_pipeline_in_one_process = config.get('run_pipeline_in_one_process', False)
         self.spark_config = config.get('spark_config') or {}
         self.tags = config.get('tags') or []
         self.widget_configs = config.get('widgets') or []
@@ -508,7 +521,7 @@ class Pipeline:
         callbacks = [build_shared_args_kwargs(c) for c in self.callback_configs]
         conditionals = [build_shared_args_kwargs(c) for c in self.conditional_configs]
         widgets = [build_shared_args_kwargs(c) for c in self.widget_configs]
-        all_blocks = blocks + callbacks + widgets
+        all_blocks = blocks + callbacks + conditionals + widgets
 
         self.blocks_by_uuid = self.__initialize_blocks_by_uuid(
             self.block_configs,
@@ -590,6 +603,7 @@ class Pipeline:
     def to_dict_base(self, exclude_data_integration=False) -> Dict:
         base = dict(
             concurrency_config=self.concurrency_config,
+            created_at=self.created_at,
             data_integration=self.data_integration if not exclude_data_integration else None,
             description=self.description,
             executor_config=self.executor_config,
@@ -598,6 +612,7 @@ class Pipeline:
             name=self.name,
             notification_config=self.notification_config,
             retry_config=self.retry_config,
+            run_pipeline_in_one_process=self.run_pipeline_in_one_process,
             tags=self.tags,
             type=self.type.value if type(self.type) is not str else self.type,
             updated_at=self.updated_at,
@@ -885,6 +900,10 @@ class Pipeline:
                     if block_data.get('has_callback') is not None:
                         block.update(extract(block_data, ['has_callback']))
 
+                    color = block_data.get('color')
+                    if color is not None and color != block.color:
+                        block.update(extract(block_data, ['color']))
+
                     configuration = block_data.get('configuration')
                     if configuration:
                         if configuration.get('dynamic') and not is_dynamic_block(block):
@@ -912,6 +931,7 @@ class Pipeline:
                             block.upstream_blocks,
                             [],
                             force_update=True,
+                            variables=self.variables,
                         )
 
                     if widget:
@@ -1007,7 +1027,7 @@ class Pipeline:
 
         for upstream_block in upstream_blocks:
             upstream_block.downstream_blocks.append(block)
-        block.update_upstream_blocks(upstream_blocks)
+        block.update_upstream_blocks(upstream_blocks, variables=self.variables)
         block.pipeline = self
         if priority is None or priority >= len(mapping.keys()):
             mapping[block.uuid] = block
@@ -1196,7 +1216,10 @@ class Pipeline:
                         ]
 
                 # All blocks will depend on non-widget type blocks
-                block.update_upstream_blocks(self.get_blocks(upstream_block_uuids, widget=False))
+                block.update_upstream_blocks(
+                    self.get_blocks(upstream_block_uuids, widget=False),
+                    variables=self.variables,
+                )
         elif callback_block_uuids is not None:
             callback_blocks = []
             for callback_block_uuid in callback_block_uuids:
