@@ -7,7 +7,7 @@ import { DataGrid, GridRowsProp, GridColDef } from '@mui/x-data-grid';
 const TestContainer = ({ testData, setTestId }) => {
 
     const handleChange = (test_id) => {
-        setTestId(test_id);
+        setTestId(test_id[0]);
     };
 
     const rows: GridRowsProp = testData.map((item)=>({

@@ -1,6 +1,5 @@
 import styled from 'styled-components';
 import {
-    Container,
     Paper,
     Button,
     FormGroup,
@@ -23,6 +22,14 @@ export const SCLineContainer = styled.div`
   flex-direction: column;
 `;
 
+export const ChartDiv = styled.div`
+  height:460px;
+  display:flex;
+  justify-content:center;
+  align-items:center; 
+  width:100%;
+`;
+
 export const CenterAlign = styled.div`
   width: 100%;
   height: 100%;
@@ -34,6 +41,48 @@ export const CenterAlign = styled.div`
 export const CaptureButton = styled(Button)`
   position: absolute;
   right: 0;
+`;
+
+export const SliderContainer = styled.div`
+  width: 100%;
+  padding-left: 20px;
+  padding-right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+`;
+
+export const SliderDiv = styled.div`
+  width: 90%;
+  margin-right: 20px;
+`;
+
+
+
+export const CaptureDiv = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  padding: 1rem;
+`;
+
+export const ModalDiv = styled.div`
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px;
+  background: white;
+  padding: 2rem;
+  border-radius: 5px;
+  box-shadow: 24;
+`;
+
+export const ModalHeading = styled.div`
+  font-weight: 500;
+  font-size: 1.2rem;
+  padding-bottom: 8px;
+  border-bottom: 1px solid gray;
+  
 `;
 
 

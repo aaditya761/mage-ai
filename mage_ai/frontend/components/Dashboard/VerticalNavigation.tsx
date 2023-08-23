@@ -123,7 +123,7 @@ const DEFAULT_NAV_ITEMS = [
         {
         Icon: Chart1,
         id: 'chart',
-        label: () => 'Graph View',
+        label: () => 'SIL Launcher',
         linkProps: {
           href: '/graph-view',
         },

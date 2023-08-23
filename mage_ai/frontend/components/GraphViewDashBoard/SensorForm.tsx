@@ -8,15 +8,13 @@ import ModelNameDropDown from '@components/GraphViewDashBoard/ModelNameDropDown'
 import ModelTagDropDown from '@components/GraphViewDashBoard/ModelTagsDropDown';
 
 export const SensorForm = ({
-                               setShowAltChartView,
-                               selectedSensors,
-                               setSelectedSensors,
                                setTestData,
+                               selectModelTag,
                            }) => {
     const [batteryId, setBatteryId] = useState(null);
 
     useEffect(() => {
-    }, [batteryId, selectedSensors.length]);
+    }, [batteryId]);
 
     useEffect(() => {
         if (batteryId) {
@@ -40,7 +38,7 @@ export const SensorForm = ({
           <ModelNameDropDown/>
         </Grid>
           <Grid item xs={3}>
-              <ModelTagDropDown/>
+              <ModelTagDropDown selectModelTag={selectModelTag}/>
           </Grid>
 
       </Grid>
@@ -48,10 +46,8 @@ export const SensorForm = ({
 };
 
 SensorForm.propTypes = {
-    selectedSensors: PropTypes.array.isRequired,
-    setShowAltChartView: PropTypes.func.isRequired,
-    setSelectedSensors: PropTypes.func.isRequired,
     setTestData: PropTypes.func.isRequired,
+    selectModelTag: PropTypes.func.isRequired,
 };
 
 export default SensorForm;

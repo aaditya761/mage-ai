@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { Stack, List } from '@mui/material';
+import { Stack } from '@mui/material';
 import { ChartContainer, DashboardContainer } from './styles';
 import SCLineChart from './SCLineChart';
 import SensorForm from './SensorForm';
 import TestContainer from '@components/GraphViewDashBoard/TestContainer';
 
 const GraphViewDashBoard = () => {
-    const [selectedSensors, setSelectedSensors] = useState([]);
     const [testData, setTestData] = useState([]);
     const [selectedTestID, setSelectedTestID] = useState(null);
+    const [selectedModelTag, setSelectedModelTag] = useState("");
     const [showAltChartView, setShowAltChartView] = useState(false);
 
 
@@ -25,9 +25,7 @@ const GraphViewDashBoard = () => {
       <DashboardContainer>
         <Stack spacing={2} width="100%">
           <SensorForm
-                    selectedSensors={selectedSensors}
-                    setSelectedSensors={setSelectedSensors}
-                    setShowAltChartView={setShowAltChartView}
+                    selectModelTag={setSelectedModelTag}
                     setTestData={changeTest}
                 />
         </Stack>
@@ -38,6 +36,7 @@ const GraphViewDashBoard = () => {
             }
         <ChartContainer>
           {selectedTestID ? <SCLineChart
+                    selectedModelTag={selectedModelTag}
                     testID={selectedTestID}
                     toggleChartView={showAltChartView}
                 /> : null}
