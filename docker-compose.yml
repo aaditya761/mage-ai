@@ -73,3 +73,9 @@ services:
       - ./mage_ai/frontend/utils:/home/src/mage_ai/frontend/utils
       - ./mage_ai/frontend/yarn.lock:/home/src/mage_ai/frontend/yarn.lock
     working_dir: /home/src/mage_ai/frontend
+
+  sil-launcher-node-backend:
+    container_name: sil-launcher-node-backend
+    build: ./node-backend
+    ports:
+      - '3005:3005'
